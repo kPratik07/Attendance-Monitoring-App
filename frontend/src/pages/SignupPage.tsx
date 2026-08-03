@@ -37,7 +37,7 @@ export function SignupPage() {
 
   const ALLOWED_EMAIL_DOMAINS = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS ?? 'gmail.com,hotmail.com,outlook.com,yahoo.com,icloud.com')
     .split(',')
-    .map((domain) => domain.trim().toLowerCase())
+    .map((domain: string) => domain.trim().toLowerCase())
     .filter(Boolean);
 
   const isEmailAllowed = (value: string) => {

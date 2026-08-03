@@ -52,7 +52,7 @@ export function ForgotPasswordPage() {
     // If frontend has configured allowed domains, enforce them too
     const allowed = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS ?? '')
       .split(',')
-      .map((d) => d.trim().toLowerCase())
+      .map((d: string) => d.trim().toLowerCase())
       .filter(Boolean);
     if (allowed.length > 0) {
       const domain = emailValue.split('@')[1] ?? '';
