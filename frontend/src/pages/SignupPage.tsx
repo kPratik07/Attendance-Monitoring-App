@@ -14,6 +14,8 @@ export function SignupPage() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isDepartmentOpen, setIsDepartmentOpen] = useState(false);
   const [isRoleOpen, setIsRoleOpen] = useState(false);
   const navigate = useNavigate();
@@ -33,20 +35,68 @@ export function SignupPage() {
       });
   }, []);
 
+  const ALLOWED_EMAIL_DOMAINS = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS ?? 'gmail.com,hotmail.com,outlook.com,yahoo.com,icloud.com')
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean);
+
+  const isEmailAllowed = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalized)) {
+      return false;
+    }
+    const domain = normalized.split('@')[1] ?? '';
+    if (ALLOWED_EMAIL_DOMAINS.length === 0) return true; // no restriction configured
+    return ALLOWED_EMAIL_DOMAINS.includes(domain);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
     setStatus('');
+    setEmailError('');
+    setPasswordError('');
 
-    if (!role || !department) {
-      setError('Please select a department and role to continue.');
+    if (!name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setEmailError('Please enter your email address.');
+      return;
+    }
+
+    if (!isEmailAllowed(email)) {
+      setEmailError(`Please sign up with an approved institution email domain: ${ALLOWED_EMAIL_DOMAINS.join(', ')}`);
+      return;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Enter your password first');
+      return;
+    }
+
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (!role) {
+      setError('Please select a role to continue.');
+      return;
+    }
+
+    if (!department) {
+      setError('Please select a department to continue.');
       return;
     }
 
     try {
       const payload = await apiFetch<{ token: string; user: { id: string; name: string; email: string; role: 'student' | 'admin'; accountId: string; department: string } }>('/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password, role, department }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password, role, department }),
       });
 
       login(payload.user, payload.token);
@@ -62,9 +112,9 @@ export function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 p-4">
-      <form onSubmit={handleSubmit} className="page-surface auth-card mx-auto w-full max-w-[420px] p-4">
-        <div className="mb-4 space-y-1.5 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 p-3">
+      <form onSubmit={handleSubmit} className="page-surface auth-card mx-auto w-full max-w-[420px] p-3">
+        <div className="mb-3 space-y-1 text-center">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-brand-500 text-white shadow-xl shadow-brand-500/20">
             <span className="text-base font-black">A</span>
           </div>
@@ -72,15 +122,32 @@ export function SignupPage() {
           <p className="text-xs text-slate-500">Join the attendance workspace using a secure institution email.</p>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           <input value={name} onChange={(event) => setName(event.target.value)} className="form-input" placeholder="Full name" />
-          <input value={email} onChange={(event) => setEmail(event.target.value)} className="form-input" placeholder="Email" />
+          <input
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+            }}
+            className="form-input"
+            placeholder="Email"
+          />
+          {/* Allowed domains hint removed per request */}
+          {emailError ? <div className="text-sm text-rose-600">{emailError}</div> : null}
+
           <div className="relative">
-            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} className="form-input pr-12" placeholder="Password" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="form-input pr-12"
+              placeholder="Password"
+            />
             <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-3 flex items-center justify-center text-slate-400 transition hover:text-slate-600" aria-label={showPassword ? 'Hide password' : 'Show password'}>
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          {passwordError ? <div className="text-sm text-rose-600">{passwordError}</div> : null}
 
           <label className="sr-only" htmlFor="department">Department</label>
           <div className="dropdown-shell">

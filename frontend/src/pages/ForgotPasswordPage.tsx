@@ -19,6 +19,7 @@ const getFriendlyForgotPasswordMessage = (message: string) => {
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,20 +29,49 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [step, setStep] = useState<'request' | 'reset'>('request');
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleRequestReset = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
     setStatus('');
 
-    if (!email.trim()) {
-      setError('Please add your registered email first.');
+    const raw = email.trim();
+    if (!raw) {
+      setEmailError('Please enter your email address.');
       return;
     }
+
+    const emailValue = raw.toLowerCase();
+    const tldRegex = /\.[a-z]{2,24}$/i;
+    if (!tldRegex.test(emailValue)) {
+      setEmailError('Please enter your email address.');
+      return;
+    }
+
+    // If frontend has configured allowed domains, enforce them too
+    const allowed = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS ?? '')
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean);
+    if (allowed.length > 0) {
+      const domain = emailValue.split('@')[1] ?? '';
+      if (!allowed.includes(domain)) {
+        setEmailError('Please enter your email address.');
+        return;
+      }
+    }
+
+    if (!emailRegex.test(email.trim())) {
+      setEmailError('Please enter your email address.');
+      return;
+    }
+    setEmailError('');
 
     try {
       await apiFetch('/auth/forgot-password', {
         method: 'POST',
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: emailValue }),
       });
 
       setStatus('If the account exists, an OTP has been sent to your registered email.');
@@ -57,6 +87,16 @@ export function ForgotPasswordPage() {
     setError('');
     setStatus('');
 
+    if (!otp.trim()) {
+      setError('Please enter the OTP sent to your email.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('New password and confirm password must match.');
       return;
@@ -65,7 +105,7 @@ export function ForgotPasswordPage() {
     try {
       await apiFetch('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({ email, otp, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim(), password }),
       });
 
       setStatus('Password reset successful. You can now sign in with the new password.');
@@ -103,6 +143,7 @@ export function ForgotPasswordPage() {
               placeholder="Registered email"
               disabled={step === 'reset'}
             />
+            {step === 'request' && emailError ? <div className="text-sm text-rose-600">{emailError}</div> : null}
 
             {step === 'reset' ? (
               <>

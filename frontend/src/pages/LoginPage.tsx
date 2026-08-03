@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -16,10 +17,23 @@ export function LoginPage() {
     event.preventDefault();
     setError('');
 
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setEmailError('Please enter your email address.');
+      return;
+    }
+    setEmailError('');
+
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
     try {
       const payload = await apiFetch<{ token: string; user: { id: string; email: string; role: 'student' | 'admin'; name: string; accountId?: string; department?: string } }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
       login(payload.user, payload.token);
@@ -45,7 +59,13 @@ export function LoginPage() {
           <p className="text-sm text-slate-500">Sign in to continue to your attendance dashboard.</p>
         </div>
         <div className="space-y-4">
-          <input value={email} onChange={(event) => setEmail(event.target.value)} className="form-input" placeholder="Email" />
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="form-input"
+            placeholder="Email"
+          />
+          {emailError ? <div className="text-sm text-rose-600">{emailError}</div> : null}
           <div className="relative">
             <input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} className="form-input pr-12" placeholder="Password" />
             <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-3 flex items-center justify-center text-slate-400 transition hover:text-slate-600" aria-label={showPassword ? 'Hide password' : 'Show password'}>
